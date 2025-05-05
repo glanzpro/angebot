@@ -1,0 +1,209 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reinigungsangebot (Mobiloptimiert)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0 auto;
+            padding: 1em;
+            max-width: 600px;
+            background: #f9f9f9;
+        }
+        h2 {
+            text-align: center;
+            color: #007BFF;
+        }
+        label {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        select, input, button {
+            display: block;
+            width: 100%;
+            margin-top: 5px;
+            padding: 10px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        .service-block {
+            border: 1px solid #ccc;
+            background: #fff;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 1.2em;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Reinigungsangebot</h2>
+
+<label for="invoice">Angebotsnummer:</label>
+<input type="text" id="invoice" placeholder="z. B. 2025-002">
+
+<label for="customer">Kunde:</label>
+<input type="text" id="customer" placeholder="z. B. Müller GmbH">
+
+<div id="services"></div>
+<button onclick="addService()">+ Leistung hinzufügen</button>
+
+<label for="travel">Anfahrtspauschale (€):</label>
+<input type="number" id="travel" value="25">
+
+<label for="discount">Rabatt (€):</label>
+<input type="number" id="discount" value="0">
+
+<label for="vat">Mehrwertsteuer (%):</label>
+<input type="number" id="vat" value="19">
+
+<button onclick="calculate()">Berechnen</button>
+<div id="result"></div>
+
+<button onclick="downloadStyledPDF()">PDF herunterladen</button>
+
+<script>
+    let serviceCount = 0;
+    function addService() {
+        const container = document.getElementById('services');
+        const block = document.createElement('div');
+        block.className = 'service-block';
+        block.innerHTML = `
+            <label>Reinigungsart:</label>
+            <select class="type">
+                <option value="Fensterreinigung">Fensterreinigung</option>
+                <option value="Bodenreinigung">Bodenreinigung</option>
+                <option value="Teppichreinigung">Teppichreinigung</option>
+                <option value="Grundreinigung">Grundreinigung</option>
+                <option value="Sonderreinigung">Sonderreinigung</option>
+                <option value="Industriereinigung">Industriereinigung</option>
+                <option value="Bauendreinigung">Bauendreinigung</option>
+            </select>
+
+            <label>Fläche (m²):</label>
+            <input type="number" class="area" value="100">
+
+            <label>Preis pro m² (€):</label>
+            <input type="number" class="price" value="3.00">
+
+            <label>Verschmutzungsgrad:</label>
+            <select class="dirt">
+                <option value="1">Gering (×1,0)</option>
+                <option value="1.2">Mittel (×1,2)</option>
+                <option value="1.5">Hoch (×1,5)</option>
+            </select>
+
+            <label>Etage / Erreichbarkeit:</label>
+            <select class="floor">
+                <option value="1">Erdgeschoss (×1,0)</option>
+                <option value="1.1">1.–3. Etage (×1,1)</option>
+                <option value="1.4">Ab 4. Etage / Hebebühne (×1,4)</option>
+            </select>
+        `;
+        container.appendChild(block);
+    }
+
+    function calculate() {
+        let subtotal = 0;
+        const blocks = document.getElementsByClassName('service-block');
+        for (let block of blocks) {
+            const area = parseFloat(block.querySelector('.area').value);
+            const price = parseFloat(block.querySelector('.price').value);
+            const dirt = parseFloat(block.querySelector('.dirt').value);
+            const floor = parseFloat(block.querySelector('.floor').value);
+            subtotal += area * price * dirt * floor;
+        }
+
+        const travel = parseFloat(document.getElementById('travel').value);
+        const discount = parseFloat(document.getElementById('discount').value);
+        const vatRate = parseFloat(document.getElementById('vat').value);
+
+        const net = subtotal + travel - discount;
+        const vat = net * (vatRate / 100);
+        const total = net + vat;
+
+        document.getElementById('result').innerText =
+            `Netto: ${net.toFixed(2)} € + MwSt (${vatRate}%) = Gesamt: ${total.toFixed(2)} €`;
+    }
+
+    function downloadStyledPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: "mm", format: "a4" });
+        const invoice = document.getElementById('invoice').value;
+        const customer = document.getElementById('customer').value;
+        const travel = parseFloat(document.getElementById('travel').value);
+        const discount = parseFloat(document.getElementById('discount').value);
+        const vatRate = parseFloat(document.getElementById('vat').value);
+        const blocks = document.getElementsByClassName('service-block');
+
+        let subtotal = 0;
+        let y = 30;
+
+        doc.setFontSize(16);
+        doc.text("Angebot Gebäudereinigung", 10, 15);
+        doc.setFontSize(11);
+        doc.text(`Angebotsnummer: ${invoice}`, 10, 22);
+        doc.text(`Kunde: ${customer}`, 10, 28);
+        doc.setFontSize(12);
+        doc.text("Leistungen:", 10, y);
+        y += 6;
+
+        for (let i = 0; i < blocks.length; i++) {
+            const block = blocks[i];
+            const type = block.querySelector('.type').value;
+            const area = parseFloat(block.querySelector('.area').value);
+            const price = parseFloat(block.querySelector('.price').value);
+            const dirtFactor = parseFloat(block.querySelector('.dirt').value);
+            const floorFactor = parseFloat(block.querySelector('.floor').value);
+            const lineTotal = area * price * dirtFactor * floorFactor;
+            subtotal += lineTotal;
+
+            doc.text(`- ${type}: ${area} m² x ${price} €/m² × ${dirtFactor} × ${floorFactor} = ${lineTotal.toFixed(2)} €`, 12, y);
+            y += 6;
+        }
+
+        const net = subtotal + travel - discount;
+        const vat = net * (vatRate / 100);
+        const total = net + vat;
+
+        y += 10;
+        doc.setFontSize(11);
+        doc.text(`Zwischensumme: ${subtotal.toFixed(2)} €`, 10, y); y += 6;
+        doc.text(`Anfahrtspauschale: ${travel.toFixed(2)} €`, 10, y); y += 6;
+        doc.text(`Rabatt: -${discount.toFixed(2)} €`, 10, y); y += 6;
+        doc.text(`Netto: ${net.toFixed(2)} €`, 10, y); y += 6;
+        doc.text(`MwSt (${vatRate}%): ${vat.toFixed(2)} €`, 10, y); y += 6;
+        doc.setFontSize(13);
+        doc.text(`Gesamt: ${total.toFixed(2)} €`, 10, y); y += 10;
+
+        doc.setFontSize(11);
+        doc.text("Wir danken für Ihr Vertrauen und freuen uns auf die Zusammenarbeit.", 10, y + 10);
+        doc.text("Ihre Reinigungsfirma", 10, y + 20);
+
+        doc.save(`angebot_${invoice || 'reinigung'}.pdf`);
+    }
+
+    addService();
+</script>
+
+</body>
+</html>
